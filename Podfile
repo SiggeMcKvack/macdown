@@ -13,7 +13,7 @@ target "MacDown" do
   pod 'JJPluralForm', '~> 2.1'
   pod 'LibYAML', '~> 0.1'
   pod 'M13OrderedDictionary', '~> 1.1'
-  pod 'MASPreferences', '~> 1.3'
+  pod 'MASPreferences', '~> 1.4'
   pod 'Sparkle', '~> 2.0', :inhibit_warnings => false
 
   pod 'PAPreferences'
@@ -24,5 +24,4 @@ target "MacDownTests" do
 end
 
 target "macdown-cmd" do
-  pod 'GBCli', '~> 1.1'
 end

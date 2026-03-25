@@ -7,15 +7,16 @@
 //
 
 #import "MPArgumentProcessor.h"
-#import <GBCli/GBCli.h>
+#import <getopt.h>
 #import "MPGlobals.h"
+#import "version.h"
 
 
 @interface MPArgumentProcessor ()
 
-@property (strong) GBCommandLineParser *parser;
-@property (strong) GBOptionsHelper *options;
-@property (strong) GBSettings *settings;
+@property (nonatomic, assign, readwrite) BOOL printsHelp;
+@property (nonatomic, assign, readwrite) BOOL printsVersion;
+@property (nonatomic, strong, readwrite) NSArray *arguments;
 
 @end
 
@@ -28,67 +29,59 @@
     if (!self)
         return nil;
 
-    // Init options.
-    GBOptionsHelper *options = [[GBOptionsHelper alloc] init];
-    options.applicationVersion = ^{
-        return [NSString stringWithUTF8String:kMPApplicationShortVersion];
-    };
-    options.applicationBuild = ^{
-        return [NSString stringWithUTF8String:kMPApplicationBundleVersion];
-    };
-    options.applicationName = ^{ return kMPApplicationName; };
-    options.printHelpHeader = ^{
-        NSString *fmt =
-            @"usage: %@ [file ...]\n\nOptions:";
-        return [NSString stringWithFormat:fmt, kMPCommandName];
-    };
-    [options registerOption:'v' long:kMPVersionKey
-                description:@"Print the version and exit."
-                      flags:GBOptionNoValue];
-    [options registerOption:'h' long:kMPHelpKey
-                description:@"Print this help message and exit."
-                      flags:GBOptionNoValue];
-    self.options = options;
+    _printsHelp = NO;
+    _printsVersion = NO;
 
-    self.settings = [[GBSettings alloc] initWithName:@"command-line"
-                                              parent:nil];
+    NSProcessInfo *processInfo = [NSProcessInfo processInfo];
+    int argc = (int)processInfo.arguments.count;
+    const char **argv = malloc(sizeof(char *) * argc);
+    for (int i = 0; i < argc; i++)
+        argv[i] = [processInfo.arguments[i] UTF8String];
 
-    // Create parser and parse.
-    GBCommandLineParser *parser = [[GBCommandLineParser alloc] init];
-    [parser registerSettings:self.settings];
-    [parser registerOptions:self.options];
-    self.parser = parser;
+    static struct option longopts[] = {
+        { "help",    no_argument, NULL, 'h' },
+        { "version", no_argument, NULL, 'v' },
+        { NULL,      0,           NULL,  0  }
+    };
 
-    [self.parser parseOptionsUsingDefaultArguments];
+    int ch;
+    optind = 1;
+    while ((ch = getopt_long(argc, (char * const *)argv, "hv", longopts, NULL)) != -1) {
+        switch (ch) {
+            case 'h':
+                _printsHelp = YES;
+                break;
+            case 'v':
+                _printsVersion = YES;
+                break;
+            default:
+                break;
+        }
+    }
+
+    NSMutableArray *args = [NSMutableArray array];
+    for (int i = optind; i < argc; i++)
+        [args addObject:processInfo.arguments[i]];
+    _arguments = [args copy];
+
+    free(argv);
 
     return self;
 }
 
-- (BOOL)printsHelp
-{
-    return [self.settings boolForKey:kMPHelpKey];
-}
-
-- (BOOL)printsVersion
-{
-    return [self.settings boolForKey:kMPVersionKey];
-}
-
-- (NSArray *)arguments
-{
-    return self.parser.arguments;
-}
-
 - (void)printHelp:(BOOL)shouldExit
 {
-    [self.options printHelp];
+    printf("usage: %s [file ...]\n\nOptions:\n", kMPCommandName.UTF8String);
+    printf("  -h, --help       Print this help message and exit.\n");
+    printf("  -v, --version    Print the version and exit.\n");
     if (shouldExit)
         exit(EXIT_SUCCESS);
 }
 
 - (void)printVersion:(BOOL)shouldExit
 {
-    [self.options printVersion];
+    printf("%s %s (%s)\n", kMPApplicationName.UTF8String,
+           kMPApplicationShortVersion, kMPApplicationBundleVersion);
     if (shouldExit)
         exit(EXIT_SUCCESS);
 }
