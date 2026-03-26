@@ -108,10 +108,10 @@ NS_INLINE NSString *MPPrismDefaultThemeName()
     self.stylesheetSelect.enabled = NO;
     [self.stylesheetSelect removeAllItems];
 
-    NSArray *itemTitles = MPListEntriesForDirectory(
+    NSArray *itemTitles = [MPListEntriesForDirectory(
         kMPStylesDirectoryName,
         MPFileNameHasExtensionProcessor(kMPStyleFileExtension)
-    );
+    ) sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
 
     [self.stylesheetSelect addItemWithTitle:@""];
     [self.stylesheetSelect addItemsWithTitles:itemTitles];
