@@ -8,8 +8,8 @@
 
 #import "MPRenderer.h"
 #import <limits.h>
-#import <libcmark_gfm/cmark-gfm.h>
-#import <libcmark_gfm/cmark-gfm-core-extensions.h>
+#import <cmark-gfm/cmark-gfm.h>
+#import <cmark-gfm/cmark-gfm-core-extensions.h>
 #import <HBHandlebars/HBHandlebars.h>
 #import "cmark_gfm_rendering.h"
 #import "NSJSONSerialization+File.h"

@@ -6,9 +6,9 @@
 //
 
 #import "cmark_gfm_rendering.h"
-#import <libcmark_gfm/cmark-gfm.h>
-#import <libcmark_gfm/cmark-gfm-core-extensions.h>
-#import <libcmark_gfm/cmark-gfm-extension_api.h>
+#import <cmark-gfm/cmark-gfm.h>
+#import <cmark-gfm/cmark-gfm-core-extensions.h>
+#import <cmark-gfm/cmark-gfm-extension_api.h>
 
 #pragma mark - Helpers
 

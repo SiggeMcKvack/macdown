@@ -1,7 +1,7 @@
 PODS:
+  - cmark-gfm (0.29.0.13)
   - handlebars-objc (1.4.5)
   - JJPluralForm (2.1)
-  - libcmark_gfm (0.29.4)
   - LibYAML (0.1.4)
   - M13OrderedDictionary (1.1.0)
   - MASPreferences (1.4.1)
@@ -9,9 +9,9 @@ PODS:
   - Sparkle (2.9.0)
 
 DEPENDENCIES:
+  - cmark-gfm (from `Dependency`)
   - handlebars-objc (~> 1.4)
   - JJPluralForm (~> 2.1)
-  - libcmark_gfm (from `Dependency/libcmark_gfm`)
   - LibYAML (~> 0.1)
   - M13OrderedDictionary (~> 1.1)
   - MASPreferences (~> 1.4)
@@ -30,19 +30,19 @@ SPEC REPOS:
     - Sparkle
 
 EXTERNAL SOURCES:
-  libcmark_gfm:
-    :path: Dependency/libcmark_gfm
+  cmark-gfm:
+    :path: Dependency
 
 SPEC CHECKSUMS:
+  cmark-gfm: d2d63eccfba38de42c8b17511abd7d0fb3a20ff6
   handlebars-objc: dde09557cfee1dd0f34ab39595bd5eae7e17cb8b
   JJPluralForm: 9a6235813990a33a63fb3eff457eb2c633af6acd
-  libcmark_gfm: aed11fc48515bec53902b0fd4cddcbd42b5e94c2
   LibYAML: dee5c31dcab47b168425083c2b0a6baeacdf499e
   M13OrderedDictionary: 6e157fe9c82aa6b3cd7198f5c5c30c7a6834c4a6
   MASPreferences: 1ba2deb14086792857af44d22846fc4aae477fd9
   PAPreferences: 9f0ffb1e67174a0df001af9d3320166ceb9ee6f5
   Sparkle: f4355f9ebbe9b7d932df4980d70f13922ac97b2a
 
-PODFILE CHECKSUM: 410928ce9d7f960000e53b7c2564c75af7c7036a
+PODFILE CHECKSUM: fd76e9b96e3022b6f092c263ff8d82e005e4b983
 
 COCOAPODS: 1.16.2

@@ -9,7 +9,7 @@ inhibit_all_warnings!
 
 target "MacDown" do
   pod 'handlebars-objc', '~> 1.4'
-  pod 'libcmark_gfm', :path => 'Dependency/libcmark_gfm'
+  pod 'cmark-gfm', :path => 'Dependency'
   pod 'JJPluralForm', '~> 2.1'
   pod 'LibYAML', '~> 0.1'
   pod 'M13OrderedDictionary', '~> 1.1'
