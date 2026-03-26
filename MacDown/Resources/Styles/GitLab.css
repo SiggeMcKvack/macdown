@@ -1,0 +1,250 @@
+body {
+    font-family: "GitLab Sans", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #1f1e24;
+    background-color: #ffffff;
+    padding: 16px;
+}
+
+body > *:first-child {
+    margin-top: 0;
+}
+body > *:last-child {
+    margin-bottom: 0;
+}
+
+a {
+    color: #1f75cb;
+    text-decoration: underline;
+    text-underline-offset: .2rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+h1 {
+    font-size: 2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #dcdcde;
+}
+
+h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #dcdcde;
+}
+
+h3 {
+    font-size: 1.25em;
+}
+
+h4 {
+    font-size: 1em;
+}
+
+h5 {
+    font-size: 0.875em;
+}
+
+h6 {
+    font-size: 0.85em;
+    color: #737278;
+}
+
+h1 tt, h1 code,
+h2 tt, h2 code,
+h3 tt, h3 code,
+h4 tt, h4 code,
+h5 tt, h5 code,
+h6 tt, h6 code {
+    font-size: inherit;
+}
+
+p, blockquote, ul, ol, dl, table, pre {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 24px 0;
+    background-color: #dcdcde;
+    border: 0;
+}
+
+blockquote {
+    padding: 0 1em;
+    color: #737278;
+    border-left: 0.25em solid #dcdcde;
+    margin: 0 0 16px;
+}
+blockquote > :first-child {
+    margin-top: 0;
+}
+blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+ul, ol {
+    padding-left: 2em;
+}
+
+ul ul, ul ol, ol ul, ol ol {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+li {
+    word-wrap: break-all;
+}
+
+li + li {
+    margin-top: 0.25em;
+}
+
+dl {
+    padding: 0;
+}
+dl dt {
+    padding: 0;
+    margin-top: 16px;
+    font-size: 1em;
+    font-style: italic;
+    font-weight: 600;
+}
+dl dd {
+    padding: 0 16px;
+    margin-bottom: 16px;
+}
+
+table {
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin-top: 0;
+    margin-bottom: 16px;
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow: auto;
+}
+
+table tr {
+    background-color: #ffffff;
+    border-top: 1px solid #dcdcde;
+}
+
+table tr:nth-child(2n) {
+    background-color: #fafafa;
+}
+
+table th, table td {
+    padding: 6px 13px;
+    border: 1px solid #dcdcde;
+}
+
+table th {
+    font-weight: 600;
+}
+
+table th :first-child, table td :first-child {
+    margin-top: 0;
+}
+table th :last-child, table td :last-child {
+    margin-bottom: 0;
+}
+
+img {
+    max-width: 100%;
+    box-sizing: content-box;
+}
+
+code, tt {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    font-family: "GitLab Mono", ui-monospace, SFMono-Regular, "SF Mono",
+        Menlo, Consolas, "Liberation Mono", monospace;
+    white-space: break-spaces;
+    background-color: #ededee;
+    border-radius: 4px;
+}
+
+pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    font-family: "GitLab Mono", ui-monospace, SFMono-Regular, "SF Mono",
+        Menlo, Consolas, "Liberation Mono", monospace;
+    line-height: 1.45;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+pre code, pre tt {
+    display: inline;
+    max-width: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    line-height: inherit;
+    word-wrap: normal;
+    background-color: transparent;
+    border: 0;
+    font-size: 100%;
+    white-space: pre;
+    border-radius: 0;
+}
+
+.highlight pre {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+}
+
+sup {
+    font-size: 0.83em;
+    vertical-align: super;
+    line-height: 0;
+}
+
+kbd {
+    display: inline-block;
+    padding: 3px 5px;
+    font-size: 11px;
+    line-height: 10px;
+    color: #1f1e24;
+    vertical-align: middle;
+    background-color: #fafafa;
+    border: solid 1px #dcdcde;
+    border-bottom-color: #dcdcde;
+    border-radius: 4px;
+    box-shadow: inset 0 -1px 0 #dcdcde;
+}
+
+* {
+    -webkit-print-color-adjust: exact;
+}
+
+@media print {
+    table, pre {
+        page-break-inside: avoid;
+    }
+    pre {
+        word-wrap: break-word;
+    }
+    body {
+        padding: 2cm;
+    }
+}
