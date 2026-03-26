@@ -9,8 +9,7 @@
 #import "MPDocument.h"
 #import <WebKit/WebKit.h>
 #import <JJPluralForm/JJPluralForm.h>
-#import <hoedown/html.h>
-#import "hoedown_html_patch.h"
+#import "cmark_gfm_rendering.h"
 #import "HGMarkdownHighlighter.h"
 #import "MPUtilities.h"
 #import "MPAutosaving.h"
@@ -123,48 +122,43 @@ NS_INLINE NSColor *MPGetWebViewBackgroundColor(WebView *webview)
 @end
 
 
-@implementation MPPreferences (Hoedown)
+@implementation MPPreferences (CmarkGFM)
+
+// Returns a bitmask used for change-detection in parseIfPreferencesChanged.
 - (int)extensionFlags
 {
     int flags = 0;
-    if (self.extensionAutolink)
-        flags |= HOEDOWN_EXT_AUTOLINK;
-    if (self.extensionFencedCode)
-        flags |= HOEDOWN_EXT_FENCED_CODE;
-    if (self.extensionFootnotes)
-        flags |= HOEDOWN_EXT_FOOTNOTES;
-    if (self.extensionHighlight)
-        flags |= HOEDOWN_EXT_HIGHLIGHT;
-    if (!self.extensionIntraEmphasis)
-        flags |= HOEDOWN_EXT_NO_INTRA_EMPHASIS;
-    if (self.extensionQuote)
-        flags |= HOEDOWN_EXT_QUOTE;
-    if (self.extensionStrikethough)
-        flags |= HOEDOWN_EXT_STRIKETHROUGH;
-    if (self.extensionSuperscript)
-        flags |= HOEDOWN_EXT_SUPERSCRIPT;
-    if (self.extensionTables)
-        flags |= HOEDOWN_EXT_TABLES;
-    if (self.extensionUnderline)
-        flags |= HOEDOWN_EXT_UNDERLINE;
-    if (self.htmlMathJax)
-        flags |= HOEDOWN_EXT_MATH;
-    if (self.htmlMathJaxInlineDollar)
-        flags |= HOEDOWN_EXT_MATH_EXPLICIT;
+    if (self.extensionAutolink)       flags |= (1 << 0);
+    if (self.extensionFootnotes)      flags |= (1 << 1);
+    if (self.extensionStrikethough)   flags |= (1 << 2);
+    if (self.extensionTables)         flags |= (1 << 3);
+    if (self.htmlTaskList)            flags |= (1 << 4);
+    if (self.htmlHardWrap)            flags |= (1 << 5);
     return flags;
 }
 
-- (int)rendererFlags
+- (NSArray<NSString *> *)cmarkExtensionNames
 {
-    int flags = 0;
+    NSMutableArray *names = [NSMutableArray array];
+    if (self.extensionTables)
+        [names addObject:@"table"];
+    if (self.extensionStrikethough)
+        [names addObject:@"strikethrough"];
+    if (self.extensionAutolink)
+        [names addObject:@"autolink"];
     if (self.htmlTaskList)
-        flags |= HOEDOWN_HTML_USE_TASK_LIST;
+        [names addObject:@"tasklist"];
+    [names addObject:@"tagfilter"];
+    return names;
+}
+
+- (MPCmarkRenderFlags)cmarkRenderFlags
+{
+    MPCmarkRenderFlags flags = MPCmarkRenderFlagNone;
     if (self.htmlLineNumbers)
-        flags |= HOEDOWN_HTML_BLOCKCODE_LINE_NUMBERS;
-    if (self.htmlHardWrap)
-        flags |= HOEDOWN_HTML_HARD_WRAP;
+        flags |= MPCmarkRenderFlagLineNumbers;
     if (self.htmlCodeBlockAccessory == MPCodeBlockAccessoryCustom)
-        flags |= HOEDOWN_HTML_BLOCKCODE_INFORMATION;
+        flags |= MPCmarkRenderFlagBlockInformation;
     return flags;
 }
 @end
@@ -1041,6 +1035,26 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
     return self.preferences.htmlHighlightingThemeName;
 }
 
+- (NSArray<NSString *> *)rendererCmarkExtensions:(MPRenderer *)renderer
+{
+    return self.preferences.cmarkExtensionNames;
+}
+
+- (MPCmarkRenderFlags)rendererCmarkRenderFlags:(MPRenderer *)renderer
+{
+    return self.preferences.cmarkRenderFlags;
+}
+
+- (BOOL)rendererHasHardWrap:(MPRenderer *)renderer
+{
+    return self.preferences.htmlHardWrap;
+}
+
+- (BOOL)rendererHasFootnotes:(MPRenderer *)renderer
+{
+    return self.preferences.extensionFootnotes;
+}
+
 - (void)renderer:(MPRenderer *)renderer didProduceHTMLOutput:(NSString *)html
 {
     if (self.alreadyRenderingInWeb)
@@ -1129,13 +1143,10 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
 {
     MPRenderer *renderer = self.renderer;
 
-    // Force update if we're switching from manual to auto, or renderer settings
-    // changed.
-    int rendererFlags = self.preferences.rendererFlags;
-    if ((!self.preferences.markdownManualRender && self.manualRender)
-            || renderer.rendererFlags != rendererFlags)
+    // Force update if we're switching from manual to auto, or render
+    // settings changed.
+    if (!self.preferences.markdownManualRender && self.manualRender)
     {
-        renderer.rendererFlags = rendererFlags;
         [renderer parseAndRenderLater];
     }
     else
@@ -1349,16 +1360,6 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
 - (IBAction)toggleStrikethrough:(id)sender
 {
     [self.editor toggleForMarkupPrefix:@"~~" suffix:@"~~"];
-}
-
-- (IBAction)toggleUnderline:(id)sender
-{
-    [self.editor toggleForMarkupPrefix:@"_" suffix:@"_"];
-}
-
-- (IBAction)toggleHighlight:(id)sender
-{
-    [self.editor toggleForMarkupPrefix:@"==" suffix:@"=="];
 }
 
 - (IBAction)toggleComment:(id)sender

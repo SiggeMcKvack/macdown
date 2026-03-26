@@ -8,10 +8,10 @@
 
 #import "MPRenderer.h"
 #import <limits.h>
-#import <hoedown/html.h>
-#import <hoedown/document.h>
+#import <libcmark_gfm/cmark-gfm.h>
+#import <libcmark_gfm/cmark-gfm-core-extensions.h>
 #import <HBHandlebars/HBHandlebars.h>
-#import "hoedown_html_patch.h"
+#import "cmark_gfm_rendering.h"
 #import "NSJSONSerialization+File.h"
 #import "NSObject+HTMLTabularize.h"
 #import "NSString+Lookup.h"
@@ -29,7 +29,6 @@ static NSString * const kMPMathJaxCDN =
 static NSString * const kMPPrismScriptDirectory = @"Prism/components";
 static NSString * const kMPPrismThemeDirectory = @"Prism/themes";
 static NSString * const kMPPrismPluginDirectory = @"Prism/plugins";
-static size_t kMPRendererNestingLevel = SIZE_MAX;
 static int kMPRendererTOCLevel = 6;  // h1 to h6.
 
 
@@ -94,53 +93,40 @@ NS_INLINE NSArray *MPPrismScriptURLsForLanguage(NSString *language)
 }
 
 NS_INLINE NSString *MPHTMLFromMarkdown(
-    NSString *text, int flags, BOOL smartypants, NSString *frontMatter,
-    hoedown_renderer *htmlRenderer, hoedown_renderer *tocRenderer)
+    NSString *text, NSArray<NSString *> *extensions, int options,
+    MPCmarkRenderFlags renderFlags, BOOL hasTOC, NSString *frontMatter,
+    MPLanguageCallback languageCallback,
+    NSMutableArray<NSString *> *outLanguages)
 {
-    NSData *inputData = [text dataUsingEncoding:NSUTF8StringEncoding];
-    hoedown_document *document = hoedown_document_new(
-        htmlRenderer, flags, kMPRendererNestingLevel);
-    hoedown_buffer *ob = hoedown_buffer_new(64);
-    hoedown_document_render(document, ob, inputData.bytes, inputData.length);
-    if (smartypants)
-    {
-        hoedown_buffer *ib = ob;
-        ob = hoedown_buffer_new(64);
-        hoedown_html_smartypants(ob, ib->data, ib->size);
-        hoedown_buffer_free(ib);
-    }
-    NSString *result = [NSString stringWithUTF8String:hoedown_buffer_cstr(ob)];
-    hoedown_document_free(document);
-    hoedown_buffer_free(ob);
+    NSString *result = MPCmarkGFMToHTML(
+        text, extensions, options, renderFlags,
+        languageCallback, outLanguages);
 
-    if (tocRenderer)
+    if (hasTOC)
     {
-        document = hoedown_document_new(
-            tocRenderer, flags, kMPRendererNestingLevel);
-        ob = hoedown_buffer_new(64);
-        hoedown_document_render(
-            document, ob, inputData.bytes, inputData.length);
-        NSString *toc = [NSString stringWithUTF8String:hoedown_buffer_cstr(ob)];
+        NSString *toc = MPCmarkGFMGenerateTOC(
+            text, extensions, options, kMPRendererTOCLevel);
 
         static NSRegularExpression *tocRegex = nil;
         static dispatch_once_t onceToken;
         dispatch_once(&onceToken, ^{
-            NSString *pattern = @"<p.*?>\\s*\\[TOC\\]\\s*</p>";
-            NSRegularExpressionOptions ops = NSRegularExpressionCaseInsensitive;
-            tocRegex = [[NSRegularExpression alloc] initWithPattern:pattern
-                                                            options:ops
-                                                              error:NULL];
+            NSString *pattern =
+                @"<p.*?>\\s*\\[TOC\\]\\s*</p>";
+            NSRegularExpressionOptions ops =
+                NSRegularExpressionCaseInsensitive;
+            tocRegex = [[NSRegularExpression alloc]
+                initWithPattern:pattern options:ops
+                error:NULL];
         });
         NSRange replaceRange = NSMakeRange(0, result.length);
-        result = [tocRegex stringByReplacingMatchesInString:result options:0
-                                                      range:replaceRange
-                                               withTemplate:toc];
-        hoedown_document_free(document);
-        hoedown_buffer_free(ob);
+        result = [tocRegex
+            stringByReplacingMatchesInString:result options:0
+            range:replaceRange withTemplate:toc];
     }
     if (frontMatter)
-        result = [NSString stringWithFormat:@"%@\n%@", frontMatter, result];
-    
+        result = [NSString stringWithFormat:@"%@\n%@",
+                  frontMatter, result];
+
     return result;
 }
 
@@ -215,6 +201,7 @@ NS_INLINE BOOL MPAreNilableStringsEqual(NSString *s1, NSString *s2)
 @property (copy) NSString *currentHtml;
 @property (strong) NSOperationQueue *parseQueue;
 @property int extensions;
+@property MPCmarkRenderFlags cmarkRenderFlags;
 @property BOOL smartypants;
 @property BOOL TOC;
 @property (copy) NSString *styleName;
@@ -231,15 +218,14 @@ NS_INLINE BOOL MPAreNilableStringsEqual(NSString *s1, NSString *s2)
 
 
 NS_INLINE void add_to_languages(
-    NSString *lang, NSMutableArray *languages, NSDictionary *languageMap)
+    NSString *lang, NSMutableArray *languages,
+    NSDictionary *languageMap)
 {
-    // Move language to root of dependencies.
     NSUInteger index = [languages indexOfObject:lang];
     if (index != NSNotFound)
         [languages removeObjectAtIndex:index];
     [languages insertObject:lang atIndex:0];
 
-    // Add dependencies of this language.
     id require = languageMap[lang][@"require"];
     if ([require isKindOfClass:[NSString class]])
     {
@@ -257,15 +243,11 @@ NS_INLINE void add_to_languages(
     }
 }
 
-
-NS_INLINE hoedown_buffer *language_addition(
-    const hoedown_buffer *language, void *owner)
+// Build a language callback block that resolves Prism aliases and
+// tracks language dependencies.
+NS_INLINE MPLanguageCallback MPMakeLanguageCallback(
+    MPRenderer *renderer)
 {
-    MPRenderer *renderer = (__bridge MPRenderer *)owner;
-    NSString *lang = [[NSString alloc] initWithBytes:language->data
-                                              length:language->size
-                                            encoding:NSUTF8StringEncoding];
-
     static NSDictionary *aliasMap = nil;
     static NSDictionary *languageMap = nil;
     static dispatch_once_t token;
@@ -274,68 +256,33 @@ NS_INLINE hoedown_buffer *language_addition(
         NSURL *url = [bundle URLForResource:@"syntax_highlighting"
                               withExtension:@"json"];
         NSDictionary *info =
-            [NSJSONSerialization JSONObjectWithFileAtURL:url options:0
-                                                   error:NULL];
-
+            [NSJSONSerialization JSONObjectWithFileAtURL:url
+                                                options:0
+                                                  error:NULL];
         aliasMap = info[@"aliases"];
 
-        url = [bundle URLForResource:@"components" withExtension:@"js"
+        url = [bundle URLForResource:@"components"
+                       withExtension:@"js"
                         subdirectory:@"Prism"];
-        NSString *code = [NSString stringWithContentsOfURL:url
-                                                  encoding:NSUTF8StringEncoding
-                                                     error:NULL];
-        NSDictionary *comp = MPGetObjectFromJavaScript(code, @"components");
+        NSString *code = [NSString
+            stringWithContentsOfURL:url
+            encoding:NSUTF8StringEncoding error:NULL];
+        NSDictionary *comp =
+            MPGetObjectFromJavaScript(code, @"components");
         languageMap = comp[@"languages"];
     });
 
-    // Try to identify alias and point it to the "real" language name.
-    hoedown_buffer *mapped = NULL;
-    if ([aliasMap objectForKey:lang])
-    {
-        lang = [aliasMap objectForKey:lang];
-        NSData *data = [lang dataUsingEncoding:NSUTF8StringEncoding];
-        mapped = hoedown_buffer_new(64);
-        hoedown_buffer_put(mapped, data.bytes, data.length);
-    }
+    return ^NSString *(NSString *lang) {
+        NSString *resolved = aliasMap[lang];
+        if (!resolved)
+            resolved = lang;
 
-    // Walk dependencies to include all required scripts.
-    add_to_languages(lang, renderer.currentLanguages, languageMap);
-    
-    return mapped;
-}
+        add_to_languages(
+            resolved, renderer.currentLanguages, languageMap);
 
-NS_INLINE hoedown_renderer *MPCreateHTMLRenderer(MPRenderer *renderer)
-{
-    int flags = renderer.rendererFlags;
-    hoedown_renderer *htmlRenderer = hoedown_html_renderer_new(
-        flags, kMPRendererTOCLevel);
-    htmlRenderer->blockcode = hoedown_patch_render_blockcode;
-    htmlRenderer->listitem = hoedown_patch_render_listitem;
-    
-    hoedown_html_renderer_state_extra *extra =
-        hoedown_malloc(sizeof(hoedown_html_renderer_state_extra));
-    extra->language_addition = language_addition;
-    extra->owner = (__bridge void *)renderer;
-
-    ((hoedown_html_renderer_state *)htmlRenderer->opaque)->opaque = extra;
-    return htmlRenderer;
-}
-
-NS_INLINE hoedown_renderer *MPCreateHTMLTOCRenderer()
-{
-    hoedown_renderer *tocRenderer =
-        hoedown_html_toc_renderer_new(kMPRendererTOCLevel);
-    tocRenderer->header = hoedown_patch_render_toc_header;
-    return tocRenderer;
-}
-
-NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
-{
-    hoedown_html_renderer_state_extra *extra =
-        ((hoedown_html_renderer_state *)htmlRenderer->opaque)->opaque;
-    if (extra)
-        free(extra);
-    hoedown_html_renderer_free(htmlRenderer);
+        // Return mapped name if alias was found.
+        return [resolved isEqualToString:lang] ? nil : resolved;
+    };
 }
 
 
@@ -377,7 +324,7 @@ NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
 
     NSMutableArray *stylesheets = [NSMutableArray arrayWithObject:stylesheet];
 
-    if (self.rendererFlags & HOEDOWN_HTML_BLOCKCODE_LINE_NUMBERS)
+    if (self.cmarkRenderFlags & MPCmarkRenderFlagLineNumbers)
     {
         NSURL *url = MPPrismPluginURL(@"line-numbers", @"css");
         [stylesheets addObject:[MPStyleSheet CSSWithURL:url]];
@@ -405,7 +352,7 @@ NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
             [scripts addObject:[MPScript javaScriptWithURL:url]];
     }
 
-    if (self.rendererFlags & HOEDOWN_HTML_BLOCKCODE_LINE_NUMBERS)
+    if (self.cmarkRenderFlags & MPCmarkRenderFlagLineNumbers)
     {
         NSURL *url = MPPrismPluginURL(@"line-numbers", @"js");
         [scripts addObject:[MPScript javaScriptWithURL:url]];
@@ -506,11 +453,6 @@ NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
 {
     id<MPRendererDelegate> d = self.delegate;
     NSMutableArray *scripts = [NSMutableArray array];
-    if (self.rendererFlags & HOEDOWN_HTML_USE_TASK_LIST)
-    {
-        NSURL *url = MPExtensionURL(@"tasklist", @"js");
-        [scripts addObject:[MPScript javaScriptWithURL:url]];
-    }
     if ([d rendererHasSyntaxHighlighting:self])
     {
         [scripts addObjectsFromArray:self.prismScripts];
@@ -585,13 +527,13 @@ NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
 
 - (void)parseMarkdown:(NSString *)markdown {
     [self.currentLanguages removeAllObjects];
-    
+
     id<MPRendererDelegate> delegate = self.delegate;
     int extensions = [delegate rendererExtensions:self];
     BOOL smartypants = [delegate rendererHasSmartyPants:self];
     BOOL hasFrontMatter = [delegate rendererDetectsFrontMatter:self];
     BOOL hasTOC = [delegate rendererRendersTOC:self];
-    
+
     id frontMatter = nil;
     if (hasFrontMatter)
     {
@@ -599,17 +541,31 @@ NS_INLINE void MPFreeHTMLRenderer(hoedown_renderer *htmlRenderer)
         frontMatter = [markdown frontMatter:&offset];
         markdown = [markdown substringFromIndex:offset];
     }
-    hoedown_renderer *htmlRenderer = MPCreateHTMLRenderer(self);
-    hoedown_renderer *tocRenderer = NULL;
-    if (hasTOC)
-    tocRenderer = MPCreateHTMLTOCRenderer();
+
+    // Build cmark-gfm options.
+    int cmarkOptions = CMARK_OPT_DEFAULT;
+    if (smartypants)
+        cmarkOptions |= CMARK_OPT_SMART;
+
+    // Get extension names and render flags from delegate.
+    NSArray<NSString *> *extNames =
+        [delegate rendererCmarkExtensions:self];
+    MPCmarkRenderFlags renderFlags =
+        [delegate rendererCmarkRenderFlags:self];
+    if ([delegate rendererHasHardWrap:self])
+        cmarkOptions |= CMARK_OPT_HARDBREAKS;
+    if ([delegate rendererHasFootnotes:self])
+        cmarkOptions |= CMARK_OPT_FOOTNOTES;
+
+    MPLanguageCallback langCallback =
+        MPMakeLanguageCallback(self);
+
     self.currentHtml = MPHTMLFromMarkdown(
-                                          markdown, extensions, smartypants, [frontMatter HTMLTable],
-                                          htmlRenderer, tocRenderer);
-    if (tocRenderer)
-    hoedown_html_renderer_free(tocRenderer);
-    MPFreeHTMLRenderer(htmlRenderer);
-    
+        markdown, extNames, cmarkOptions, renderFlags,
+        hasTOC, [frontMatter HTMLTable],
+        langCallback, self.currentLanguages);
+    self.cmarkRenderFlags = renderFlags;
+
     self.extensions = extensions;
     self.smartypants = smartypants;
     self.TOC = hasTOC;

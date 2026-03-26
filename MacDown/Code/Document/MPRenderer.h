@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "cmark_gfm_rendering.h"
 @protocol MPRendererDataSource;
 @protocol MPRendererDelegate;
 
@@ -21,7 +22,6 @@ typedef NS_ENUM(NSUInteger, MPCodeBlockAccessoryType)
 
 @interface MPRenderer : NSObject
 
-@property (nonatomic) int rendererFlags;
 @property (weak) id<MPRendererDataSource> dataSource;
 @property (weak) id<MPRendererDelegate> delegate;
 
@@ -50,6 +50,8 @@ typedef NS_ENUM(NSUInteger, MPCodeBlockAccessoryType)
 
 - (int)rendererExtensions:(MPRenderer *)renderer;
 - (BOOL)rendererHasSmartyPants:(MPRenderer *)renderer;
+- (BOOL)rendererHasHardWrap:(MPRenderer *)renderer;
+- (BOOL)rendererHasFootnotes:(MPRenderer *)renderer;
 - (BOOL)rendererRendersTOC:(MPRenderer *)renderer;
 - (NSString *)rendererStyleName:(MPRenderer *)renderer;
 - (BOOL)rendererDetectsFrontMatter:(MPRenderer *)renderer;
@@ -59,6 +61,9 @@ typedef NS_ENUM(NSUInteger, MPCodeBlockAccessoryType)
 - (MPCodeBlockAccessoryType)rendererCodeBlockAccesory:(MPRenderer *)renderer;
 - (BOOL)rendererHasMathJax:(MPRenderer *)renderer;
 - (NSString *)rendererHighlightingThemeName:(MPRenderer *)renderer;
-- (void)renderer:(MPRenderer *)renderer didProduceHTMLOutput:(NSString *)html;
+- (void)renderer:(MPRenderer *)renderer
+    didProduceHTMLOutput:(NSString *)html;
+- (NSArray<NSString *> *)rendererCmarkExtensions:(MPRenderer *)renderer;
+- (MPCmarkRenderFlags)rendererCmarkRenderFlags:(MPRenderer *)renderer;
 
 @end

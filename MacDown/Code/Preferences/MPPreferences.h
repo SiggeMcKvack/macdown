@@ -7,6 +7,7 @@
 //
 
 #import <PAPreferences/PAPreferences.h>
+#import "cmark_gfm_rendering.h"
 
 
 extern NSString * const MPDidDetectFreshInstallationNotification;
@@ -20,17 +21,11 @@ extern NSString * const MPDidDetectFreshInstallationNotification;
 @property (assign) BOOL supressesUntitledDocumentOnLaunch;
 @property (assign) BOOL createFileForLinkTarget;
 
-// Extension flags.
-@property (assign) BOOL extensionIntraEmphasis;
+// Extension flags (cmark-gfm).
 @property (assign) BOOL extensionTables;
-@property (assign) BOOL extensionFencedCode;
 @property (assign) BOOL extensionAutolink;
 @property (assign) BOOL extensionStrikethough;
-@property (assign) BOOL extensionUnderline;
-@property (assign) BOOL extensionSuperscript;
-@property (assign) BOOL extensionHighlight;
 @property (assign) BOOL extensionFootnotes;
-@property (assign) BOOL extensionQuote;
 @property (assign) BOOL extensionSmartyPants;
 
 @property (assign) BOOL markdownManualRender;
@@ -72,6 +67,11 @@ extern NSString * const MPDidDetectFreshInstallationNotification;
 @property (assign) NSInteger htmlCodeBlockAccessory;
 @property (assign) NSURL *htmlDefaultDirectoryUrl;
 @property (assign) BOOL htmlRendersTOC;
+
+// cmark-gfm computed values.
+@property (readonly) int extensionFlags;
+@property (readonly) NSArray<NSString *> *cmarkExtensionNames;
+@property (readonly) MPCmarkRenderFlags cmarkRenderFlags;
 
 // Calculated values.
 @property (readonly) NSString *editorBaseFontName;

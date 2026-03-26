@@ -76,16 +76,10 @@ static NSString * const kMPDefaultHtmlStyleName = @"GitHub2";
 @dynamic supressesUntitledDocumentOnLaunch;
 @dynamic createFileForLinkTarget;
 
-@dynamic extensionIntraEmphasis;
 @dynamic extensionTables;
-@dynamic extensionFencedCode;
 @dynamic extensionAutolink;
 @dynamic extensionStrikethough;
-@dynamic extensionUnderline;
-@dynamic extensionSuperscript;
-@dynamic extensionHighlight;
 @dynamic extensionFootnotes;
-@dynamic extensionQuote;
 @dynamic extensionSmartyPants;
 
 @dynamic markdownManualRender;
@@ -243,9 +237,7 @@ static NSString * const kMPDefaultHtmlStyleName = @"GitHub2";
  */
 - (void)loadDefaultPreferences
 {
-    self.extensionIntraEmphasis = YES;
     self.extensionTables = YES;
-    self.extensionFencedCode = YES;
     self.extensionFootnotes = YES;
     self.editorBaseFontInfo = @{
         kMPDefaultEditorFontNameKey: kMPDefaultEditorFontName,
